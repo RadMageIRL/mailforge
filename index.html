@@ -1,0 +1,549 @@
+<!doctype html>
+<!--
+  MailForge: a browser-based SPF, DKIM and DMARC builder, validator and repair tool.
+  https://github.com/RadMageIRL/mailforge
+
+  This program is free software: you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, either version 3 of the License, or (at your option) any later
+  version. It is distributed WITHOUT ANY WARRANTY; without even the implied
+  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License at <https://www.gnu.org/licenses/> for more details.
+
+  SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://cloudflare-dns.com https://dns.google; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="dark light">
+  <title>MailForge v0.1.0 - SPF, DKIM &amp; DMARC Builder and Validator | RadMage Labs</title>
+  <meta name="description" content="Free SPF, DKIM and DMARC builder and validator. Count SPF DNS lookups, split long DKIM keys, explain DMARC policies and check what is published in DNS.">
+  <link rel="canonical" href="https://radmagelabs.com/mailforge/">
+  <meta name="robots" content="index,follow">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="RadMage Labs">
+  <meta property="og:url" content="https://radmagelabs.com/mailforge/">
+  <meta property="og:title" content="MailForge: SPF, DKIM &amp; DMARC Builder and Validator">
+  <meta property="og:description" content="Build, validate and safely repair SPF, DKIM and DMARC records, and inspect what is published in DNS. Runs in your browser: no account, no tracking.">
+  <meta property="og:image" content="https://radmagelabs.com/assets/og/mailforge.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="MailForge: the SPF builder with its terms in evaluation order, the record and its checks, and the DNS lookup count">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23101311'/%3E%3Crect x='3' y='3' width='58' height='58' rx='11' fill='none' stroke='%23364038' stroke-width='2'/%3E%3Cpath d='M13 21h38v24H13z' fill='none' stroke='%238cd3a0' stroke-width='5' stroke-linejoin='miter'/%3E%3Cpath d='M13 21l19 14 19-14' fill='none' stroke='%238cd3a0' stroke-width='5'/%3E%3C/svg%3E">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"MailForge","url":"https://radmagelabs.com/mailforge/","applicationCategory":"DeveloperApplication","operatingSystem":"Any","browserRequirements":"Requires JavaScript","isAccessibleForFree":true,"softwareVersion":"0.1.0","description":"SPF, DKIM and DMARC record builder, validator and repair tool with live DNS-over-HTTPS inspection. Runs in the browser.","image":"https://radmagelabs.com/assets/og/mailforge.png","screenshot":"https://radmagelabs.com/assets/og/mailforge.png","license":"https://www.gnu.org/licenses/gpl-3.0.html","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"RadMageIRL","url":"https://radmagelabs.com/"},"sameAs":"https://github.com/RadMageIRL/mailforge"}</script>
+  <style>
+    :root {
+      --bg: #f5f4ef;
+      --surface: #fffefa;
+      --surface-raised: #ffffff;
+      --text: #1c201d;
+      --muted: #6b716c;
+      --border: #cbd0c9;
+      --accent: #2b6b4d;
+      --accent-ink: #ffffff;
+      --danger: #b83b31;
+      --shadow: 0 10px 24px rgba(30, 36, 31, .08);
+      --bad: #b23a30;
+      --warn: #8a6212;
+      --good: #2f7445;
+      --info: #2f6aa8;
+      --on-sev: #ffffff;
+    }
+    /* Dark tokens are declared twice on purpose: once for the system default (when no explicit
+       choice is stored) and once for an explicit [data-theme="dark"] so the toggle wins both ways. */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #101311;
+        --surface: #181d19;
+        --surface-raised: #202620;
+        --text: #e4e9e2;
+        --muted: #98a198;
+        --border: #364038;
+        --accent: #8cd3a0;
+        --accent-ink: #102416;
+        --danger: #ff9488;
+        --shadow: 0 12px 28px rgba(0, 0, 0, .26);
+        --bad: #e66055;
+        --warn: #d6a545;
+        --good: #56a36e;
+        --info: #5d9ee7;
+        --on-sev: #111111;
+      }
+    }
+    [data-theme="dark"] {
+      --bg: #101311;
+      --surface: #181d19;
+      --surface-raised: #202620;
+      --text: #e4e9e2;
+      --muted: #98a198;
+      --border: #364038;
+      --accent: #8cd3a0;
+      --accent-ink: #102416;
+      --danger: #ff9488;
+      --shadow: 0 12px 28px rgba(0, 0, 0, .26);
+      --bad: #e66055;
+      --warn: #d6a545;
+      --good: #56a36e;
+      --info: #5d9ee7;
+      --on-sev: #111111;
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 14px; }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+    * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    a { color: var(--accent); }
+    .skip { position: absolute; left: -999px; top: 8px; background: var(--accent); color: var(--accent-ink); padding: 8px 12px; border-radius: 4px; z-index: 99; }
+    .skip:focus { left: 8px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .app { width: min(1400px, 100%); margin: 0 auto; padding: 26px clamp(16px, 3vw, 46px) 32px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
+    .brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: clamp(25px, 4vw, 38px); letter-spacing: -.11em; line-height: 1; }
+    h1::after { content: "_"; color: var(--accent); animation: blink 1.15s steps(1) infinite; }
+    .tagline { color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; align-items: center; }
+    .button { appearance: none; border: 1px solid var(--border); color: var(--text); background: transparent; border-radius: 5px; padding: 8px 11px; line-height: 1; transition: background .15s, border-color .15s, color .15s, transform .15s; }
+    .button:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+    .button:active { transform: translateY(1px); }
+    .button[disabled] { opacity: .45; cursor: default; pointer-events: none; }
+    .button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .button.primary:hover { filter: brightness(1.06); color: var(--accent-ink); }
+    .button.small { padding: 5px 8px; font-size: 11px; }
+    .button.icon { padding: 5px 7px; font-size: 12px; min-width: 26px; }
+    code { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius: 3px; padding: 1px 3px; font-size: .95em; }
+    .empty { color: var(--muted); font-size: 12px; margin: 8px 0; }
+    .hint { color: var(--muted); font-size: 11px; margin: 0; line-height: 1.5; }
+    .panel { background: color-mix(in srgb, var(--surface) 88%, var(--bg)); border: 1px solid var(--border); border-radius: 7px; }
+    label.field { display: block; margin-bottom: 12px; color: var(--muted); font-size: 12px; }
+    input, textarea, select { display: block; width: 100%; margin-top: 6px; padding: 8px 9px; border-radius: 4px; border: 1px solid var(--border); color: var(--text); background: var(--surface-raised); }
+    textarea { min-height: 84px; line-height: 1.5; resize: vertical; font-size: 12px; }
+    .check { display: inline-flex; align-items: center; gap: 7px; margin: 0 14px 6px 0; color: var(--text); font-size: 12px; cursor: pointer; }
+    .check input { width: auto; margin: 0; display: inline-block; accent-color: var(--accent); }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .row .grow { flex: 1; }
+    .footer { margin-top: 18px; color: var(--muted); font-size: 11px; display: flex; justify-content: space-between; gap: 14px; border-top: 1px solid var(--border); padding-top: 15px; flex-wrap: wrap; }
+    .footer strong { color: var(--text); }
+    .toast { position: fixed; z-index: 60; left: 50%; bottom: 22px; max-width: min(430px, calc(100vw - 28px)); text-align: center; line-height: 1.45; transform: translate(-50%, 16px); background: var(--text); color: var(--bg); padding: 9px 13px; border-radius: 4px; font-size: 12px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; }
+    .toast.visible { opacity: 1; transform: translate(-50%, 0); }
+
+    /* --- mailforge layout --- */
+    .domain-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; margin-bottom: 16px; }
+    .domain-bar label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+    .domain-bar input { width: min(360px, 100%); margin: 0; font-size: 14px; }
+    .domain-bar .hint { flex: 1; min-width: 200px; }
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin: 0 0 18px; overflow-x: auto; }
+    .tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 10px 14px; font-size: 13px; letter-spacing: .04em; white-space: nowrap; }
+    .tab:hover { color: var(--accent); }
+    .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+    .tab .count { display: inline-block; min-width: 16px; margin-left: 5px; padding: 0 5px; border-radius: 99px; font-size: 10px; line-height: 16px; text-align: center; background: var(--border); color: var(--text); }
+    .tab .count.error { background: var(--bad); color: var(--on-sev); } .tab .count.warn { background: var(--warn); color: var(--on-sev); } .tab .count.ok { background: var(--good); color: var(--on-sev); }
+    .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+    .section { padding: 16px; margin-bottom: 18px; }
+    .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin-bottom: 12px; }
+    .section-head h2, .section-head h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .12em; }
+    .section-head p { margin: 0; color: var(--muted); font-size: 11px; }
+    .intro { color: var(--muted); font-size: 12px; line-height: 1.6; margin: -4px 0 16px; max-width: 980px; }
+    .intro strong { color: var(--text); }
+    details.help { margin: 0 0 12px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+    details.help summary { cursor: pointer; width: max-content; max-width: 100%; }
+    details.help summary:hover { color: var(--accent); }
+    details.help[open] { padding-bottom: 4px; }
+    details.help p { margin: 8px 0; }
+    .presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+
+    .record { position: relative; margin: 0 0 12px; padding: 11px 12px; background: color-mix(in srgb, var(--bg) 70%, var(--surface-raised)); border: 1px solid var(--border); border-radius: 5px; font-size: 12px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .record.bad { border-color: var(--bad); }
+    .stats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: -4px 0 12px; color: var(--muted); font-size: 11px; align-items: center; }
+    .meter { display: inline-block; width: 90px; height: 6px; border-radius: 99px; background: var(--border); overflow: hidden; vertical-align: middle; margin-left: 6px; }
+    .meter span { display: block; height: 100%; background: var(--good); }
+    .meter span.warn { background: var(--warn); } .meter span.error { background: var(--bad); }
+
+    .finding { display: flex; gap: 12px; align-items: baseline; margin-bottom: 7px; padding: 9px 12px; border: 1px solid var(--border); border-left: 3px solid var(--muted); border-radius: 4px; background: var(--surface-raised); }
+    .finding.error { border-left-color: var(--bad); } .finding.warn { border-left-color: var(--warn); } .finding.ok { border-left-color: var(--good); } .finding.info { border-left-color: var(--info); }
+    .finding .sev { flex: 0 0 44px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+    .finding.error .sev { color: var(--bad); } .finding.warn .sev { color: var(--warn); } .finding.ok .sev { color: var(--good); } .finding.info .sev { color: var(--info); }
+    .finding .body { flex: 1; min-width: 0; }
+    .finding strong { font-size: 12.5px; overflow-wrap: anywhere; }
+    .finding .detail { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+    .finding .rfc { display: inline-block; margin-top: 4px; font-size: 11px; }
+
+    .terms { list-style: none; margin: 0 0 10px; padding: 0; counter-reset: term; }
+    .term { display: grid; grid-template-columns: 22px 78px 108px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+    .term::before { counter-increment: term; content: counter(term); color: var(--muted); font-size: 10px; text-align: right; }
+    .term select, .term input { margin: 0; padding: 6px 7px; font-size: 12px; }
+    .term input.bad { border-color: var(--bad); }
+    .term .moves { display: flex; gap: 3px; }
+    .term.dead input, .term.dead select { opacity: .55; }
+    .add-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 6px; margin-top: 8px; }
+    .add-row select, .add-row input { margin: 0; padding: 7px 8px; font-size: 12px; }
+
+    .radio-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 6px 0 14px; }
+    .radio-card { position: relative; display: block; padding: 10px 11px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-raised); cursor: pointer; font-size: 12px; line-height: 1.45; color: var(--muted); }
+    .radio-card input { position: absolute; opacity: 0; pointer-events: none; }
+    .radio-card strong { display: block; margin-bottom: 3px; color: var(--text); font-size: 13px; }
+    .radio-card:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .radio-card:has(input:focus-visible) { outline: 1px solid var(--accent); outline-offset: 1px; }
+    .fields-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 12px; }
+    .fields-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+    .explain { margin: 0 0 12px; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+    .hint, .sub-head, .strings-head { overflow-wrap: anywhere; }
+    .explain li { margin-bottom: 3px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 9px; border: 1px solid var(--border); border-radius: 99px; font-size: 11px; }
+    .chip button { border: 0; background: none; color: var(--muted); padding: 0 4px; }
+    .chip button:hover { color: var(--bad); }
+
+    .repair { margin-top: 4px; }
+    .repair ul { margin: 6px 0 10px; padding-left: 0; list-style: none; font-size: 12px; line-height: 1.5; }
+    .repair li { display: flex; gap: 8px; align-items: baseline; margin-bottom: 5px; overflow-wrap: anywhere; }
+    .kind { flex: 0 0 auto; padding: 0 6px; border: 1px solid var(--border); border-radius: 99px; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; line-height: 1.7; color: var(--muted); white-space: nowrap; }
+    .kind.fix { color: var(--warn); border-color: var(--warn); } .kind.blocked { color: var(--bad); border-color: var(--bad); } .kind.merge, .kind.dead { color: var(--info); border-color: color-mix(in srgb, var(--info) 60%, var(--border)); }
+    .banner { margin: 0 0 12px; padding: 9px 12px; border-radius: 4px; font-size: 12px; line-height: 1.5; border: 1px solid var(--border); }
+    .banner.error { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+    .banner.ok { border-color: var(--good); background: color-mix(in srgb, var(--good) 8%, transparent); }
+    .banner.warn { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, transparent); }
+    .banner.info { border-color: color-mix(in srgb, var(--info) 60%, var(--border)); background: color-mix(in srgb, var(--info) 7%, transparent); }
+
+    .out-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; table-layout: fixed; }
+    .out-table th { width: 110px; text-align: left; vertical-align: top; color: var(--muted); font-weight: 400; font-size: 11px; padding: 8px 8px 8px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+    .out-table td { padding: 6px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); vertical-align: top; }
+    .out-table td .cell { display: flex; gap: 8px; align-items: flex-start; }
+    .out-table td pre, .codebox { flex: 1; min-width: 0; margin: 0; padding: 7px 9px; background: color-mix(in srgb, var(--bg) 70%, var(--surface-raised)); border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; }
+    .codebox.json { white-space: pre; overflow-x: auto; overflow-wrap: normal; max-height: 340px; }
+    .strings { margin: 0 0 10px; }
+    .strings-head { font-size: 12px; margin-bottom: 6px; }
+    .str { display: flex; gap: 10px; margin: 0 0 4px; padding: 4px 8px; border-left: 3px solid var(--accent); background: var(--surface-raised); font-size: 11px; line-height: 1.45; }
+    .str span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .str .len { flex: 0 0 auto; color: var(--muted); }
+    .format-picker { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 12px; }
+    .format-picker button { appearance: none; border: 1px solid var(--border); background: none; color: var(--muted); border-radius: 99px; padding: 4px 10px; font-size: 11px; }
+    .format-picker button[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+
+    .inspect-form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 10px 12px; align-items: end; }
+    .inspect-form label.field { margin: 0; }
+    .tree { margin: 0; padding-left: 0; list-style: none; font-size: 12px; line-height: 1.55; }
+    .tree ul { list-style: none; margin: 4px 0 4px 8px; padding-left: 14px; border-left: 1px dashed var(--border); }
+    .tree li { margin: 4px 0; }
+    .tree .meta { color: var(--muted); font-size: 11px; }
+    .tree .err { color: var(--bad); font-size: 11px; }
+    .tree .rec { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+    .tag { display: inline-block; padding: 0 7px; border: 1px solid var(--border); border-radius: 99px; color: var(--muted); font-size: 10px; line-height: 1.6; white-space: nowrap; }
+    .tag.error { color: var(--bad); border-color: var(--bad); } .tag.warn { color: var(--warn); border-color: var(--warn); } .tag.ok { color: var(--good); border-color: var(--good); } .tag.info { color: var(--info); border-color: var(--info); }
+    .steps { margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.7; color: var(--muted); }
+    .steps li { margin-bottom: 6px; }
+    .steps strong { color: var(--text); }
+    .help-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .help-grid h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; }
+    .help-grid p, .help-grid li { color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .help-grid ul { padding-left: 18px; margin: 6px 0; }
+    .diagram { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin: 10px 0; }
+    .diagram div { padding: 10px; border: 1px solid var(--border); border-radius: 5px; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+    .diagram .good { border-color: var(--good); } .diagram .bad { border-color: var(--bad); }
+    .diagram strong { display: block; margin-bottom: 4px; font-size: 12px; }
+    .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 99px; animation: spin .8s linear infinite; vertical-align: -1px; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [hidden] { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+      h1::after { animation: none; }
+    }
+    @media (max-width: 980px) { .grid-2, .help-grid { grid-template-columns: minmax(0, 1fr); } }
+    @media (max-width: 700px) {
+      .app { padding-top: 18px; } .topbar { align-items: flex-start; flex-direction: column; } .toolbar { justify-content: flex-start; }
+      .term { grid-template-columns: 22px 70px minmax(0, 1fr); } .term input { grid-column: 2 / -1; } .term .moves { grid-column: 2 / -1; justify-content: flex-end; }
+      .add-row, .inspect-form, .fields-3, .radio-cards { grid-template-columns: minmax(0, 1fr); }
+      .out-table th { width: 78px; }
+      .footer { display: block; line-height: 1.8; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#tab-panels">Skip to the tools</a>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand"><h1>mailforge</h1><span class="tagline">v0.1.0 · spf · dkim · dmarc builder, validator &amp; repair / runs in your browser · <a href="https://radmagelabs.com/">RadMage Labs</a></span></div>
+      <nav class="toolbar" aria-label="Page controls">
+        <button class="button" id="theme-toggle" type="button" aria-label="Switch color theme">Theme</button>
+      </nav>
+    </header>
+
+    <noscript><p class="banner warn">MailForge builds and checks SPF, DKIM and DMARC DNS records entirely in your browser. It needs JavaScript to run.</p></noscript>
+
+    <section class="domain-bar panel" aria-label="Domain">
+      <label for="domain">domain</label>
+      <input id="domain" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="example.com">
+      <p class="hint" id="domain-hint">The domain the records are for. It sets the host names in the output and is what Inspect looks up.</p>
+    </section>
+
+    <div class="tabs" role="tablist" aria-label="Record type">
+      <button class="tab" role="tab" id="tab-spf" aria-controls="panel-spf" data-tab="spf">SPF<span class="count" id="count-spf" hidden></span></button>
+      <button class="tab" role="tab" id="tab-dkim" aria-controls="panel-dkim" data-tab="dkim">DKIM<span class="count" id="count-dkim" hidden></span></button>
+      <button class="tab" role="tab" id="tab-dmarc" aria-controls="panel-dmarc" data-tab="dmarc">DMARC<span class="count" id="count-dmarc" hidden></span></button>
+      <button class="tab" role="tab" id="tab-inspect" aria-controls="panel-inspect" data-tab="inspect">Inspect DNS</button>
+      <button class="tab" role="tab" id="tab-help" aria-controls="panel-help" data-tab="help">Help</button>
+    </div>
+
+    <div id="tab-panels">
+    <!-- ======================= SPF ======================= -->
+    <section id="panel-spf" role="tabpanel" aria-labelledby="tab-spf" tabindex="-1">
+      <h2 class="sr-only">SPF record builder and validator</h2>
+      <p class="intro"><strong>SPF</strong> lists the servers allowed to send mail using your domain in the envelope (Return-Path). Publish exactly <strong>one</strong> SPF record per host name; two records make SPF fail for every message. <a href="https://www.rfc-editor.org/rfc/rfc7208" target="_blank" rel="noopener noreferrer">RFC 7208</a></p>
+      <div class="grid-2">
+        <div>
+          <section class="section panel" aria-labelledby="spf-import-h">
+            <div class="section-head"><h3 id="spf-import-h">check an existing record</h3><p>paste one or more records, or fetch what is published</p></div>
+            <label class="field" for="spf-import">SPF record(s)<textarea id="spf-import" spellcheck="false" placeholder='v=spf1 include:spf.protection.outlook.com -all&#10;"v=spf1 ip4:192.0.2.0/24 " "include:_spf.google.com ~all"&#10;example.com. 3600 IN TXT "v=spf1 mx -all"'></textarea></label>
+            <div class="row"><button class="button primary small" type="button" data-import="spf">Check</button><button class="button small" type="button" data-fetch="spf">Fetch published</button><span class="grow"></span><button class="button small" type="button" data-clear-import="spf">Clear</button></div>
+            <div id="spf-import-result" aria-live="polite"></div>
+          </section>
+          <section class="section panel" aria-labelledby="spf-build-h">
+            <div class="section-head"><h3 id="spf-build-h">build</h3><p>terms are evaluated top to bottom; the first match wins</p></div>
+            <details class="help"><summary>How the terms work</summary>
+              <p><code>ip4</code>/<code>ip6</code> authorize addresses and cost no DNS lookups. <code>a</code>, <code>mx</code>, <code>include</code>, <code>exists</code>, <code>ptr</code> and <code>redirect</code> each cost one of the <strong>10</strong> lookups a receiver allows, and included records spend from the same budget.</p>
+              <p>The qualifier sets the result when a term matches: <code>+</code> pass (default), <code>~</code> softfail, <code>-</code> fail, <code>?</code> neutral. End with <code>~all</code> or <code>-all</code>; <code>+all</code> authorizes the whole internet.</p>
+            </details>
+            <ol class="terms" id="spf-terms" aria-label="SPF terms in evaluation order"></ol>
+            <div class="add-row">
+              <label class="sr-only" for="spf-add-kind">Term type</label>
+              <select id="spf-add-kind"><option value="auto">auto-detect</option><option value="ip4">ip4</option><option value="ip6">ip6</option><option value="include">include</option><option value="a">a</option><option value="mx">mx</option><option value="exists">exists</option><option value="redirect">redirect</option></select>
+              <label class="sr-only" for="spf-add-value">Values to add</label>
+              <input id="spf-add-value" type="text" spellcheck="false" autocomplete="off" placeholder="192.0.2.10, 2001:db8::/48, _spf.example.com">
+              <button class="button small" type="button" id="spf-add">Add</button>
+            </div>
+            <p class="hint" style="margin-top:6px">Several values can be added at once, separated by spaces or commas. New terms go in before <code>all</code>.</p>
+            <div class="presets" aria-label="Common senders"><span class="hint" style="align-self:center">common senders:</span>
+              <button class="button small" type="button" data-preset="include:spf.protection.outlook.com">Microsoft 365</button>
+              <button class="button small" type="button" data-preset="include:_spf.google.com">Google Workspace</button>
+              <button class="button small" type="button" data-preset="include:spf.ess.barracudanetworks.com">Barracuda Email Gateway Defense (US)</button>
+              <button class="button small" type="button" data-preset="include:mailgun.org">Mailgun</button>
+              <button class="button small" type="button" data-preset="include:sendgrid.net">SendGrid</button>
+            </div>
+            <p class="hint">Check each provider's own documentation; these values rarely change, but they can. Barracuda has separate includes for its other regions (au, ca, de, in, uk), such as <code>spf.ess.uk.barracudanetworks.com</code>. SendGrid and Mailgun usually send from their own subdomain of yours (such as <code>em1234</code> or <code>mg</code>) and give you that subdomain's SPF record; add them here only if mail is sent from this exact domain.</p>
+            <div class="row" style="margin-top:12px"><button class="button small" type="button" id="spf-reset-none">Start over: domain sends no mail</button><button class="button small" type="button" id="spf-reset">Start over: blank</button></div>
+          </section>
+        </div>
+        <div>
+          <section class="section panel" aria-labelledby="spf-result-h">
+            <div class="section-head"><h3 id="spf-result-h">record &amp; checks</h3><p id="spf-host"></p></div>
+            <pre class="record" id="spf-record"></pre>
+            <div class="stats" id="spf-stats"></div>
+            <div id="spf-findings" aria-live="polite"></div>
+            <div id="spf-repair" class="repair"></div>
+          </section>
+          <section class="section panel" aria-labelledby="spf-out-h">
+            <div class="section-head"><h3 id="spf-out-h">dns output</h3><p>copy into your DNS host</p></div>
+            <div id="spf-output"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= DKIM ======================= -->
+    <section id="panel-dkim" role="tabpanel" aria-labelledby="tab-dkim" tabindex="-1" hidden>
+      <h2 class="sr-only">DKIM record builder and validator</h2>
+      <p class="intro"><strong>DKIM</strong> publishes the public key receivers use to verify signatures your mail server adds. The key lives at <code>selector._domainkey.domain</code>. Long keys need several strings in <strong>one</strong> TXT record. <a href="https://www.rfc-editor.org/rfc/rfc6376" target="_blank" rel="noopener noreferrer">RFC 6376</a> · <a href="https://www.rfc-editor.org/rfc/rfc8301" target="_blank" rel="noopener noreferrer">RFC 8301</a> · <a href="https://www.rfc-editor.org/rfc/rfc8463" target="_blank" rel="noopener noreferrer">RFC 8463</a></p>
+      <div class="grid-2">
+        <div>
+          <section class="section panel" aria-labelledby="dkim-import-h">
+            <div class="section-head"><h3 id="dkim-import-h">check an existing record or key</h3><p>TXT record, zone-file / opendkim output, or a PEM public key</p></div>
+            <label class="field" for="dkim-import">Record or public key<textarea id="dkim-import" spellcheck="false" placeholder='v=DKIM1; k=rsa; p=MIIBIjANBgkqh…&#10;&#10;mail._domainkey IN TXT ( "v=DKIM1; k=rsa; " "p=MIIB…" )&#10;&#10;-----BEGIN PUBLIC KEY-----'></textarea></label>
+            <div class="row"><button class="button primary small" type="button" data-import="dkim">Check</button><button class="button small" type="button" data-fetch="dkim">Fetch published</button><span class="grow"></span><button class="button small" type="button" data-clear-import="dkim">Clear</button></div>
+            <p class="hint" style="margin-top:8px">Never paste a <strong>private</strong> key; MailForge refuses them. Everything stays in this page either way.</p>
+            <div id="dkim-import-result" aria-live="polite"></div>
+          </section>
+          <section class="section panel" aria-labelledby="dkim-build-h">
+            <div class="section-head"><h3 id="dkim-build-h">build</h3><p>the public key comes from your mail system or provider</p></div>
+            <details class="help"><summary>Microsoft 365 and other providers that use CNAMEs</summary>
+              <p>Microsoft 365 and many sending services ask you to publish a <strong>CNAME</strong> at the selector that points to a key they host and rotate. In that case you do not publish a TXT key yourself. Use Inspect to check that the CNAME resolves to a valid key.</p>
+            </details>
+            <div class="fields-2">
+              <label class="field" for="dkim-selector">Selector<input id="dkim-selector" type="text" spellcheck="false" autocomplete="off" placeholder="selector1"></label>
+              <label class="field" for="dkim-k">Key type (k=)<select id="dkim-k"><option value="rsa">rsa</option><option value="ed25519">ed25519</option></select></label>
+            </div>
+            <label class="field" for="dkim-p">Public key (p=), base64<textarea id="dkim-p" spellcheck="false" placeholder="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA…   (empty = revoke this selector)"></textarea></label>
+            <div class="fields-3">
+              <label class="field" for="dkim-h">Hash (h=)<select id="dkim-h"><option value="">any (default)</option><option value="sha256">sha256</option><option value="sha1:sha256">sha1:sha256</option><option value="sha1">sha1 (not allowed)</option></select></label>
+              <label class="field" for="dkim-s">Service (s=)<select id="dkim-s"><option value="*">* (default)</option><option value="email">email</option></select></label>
+              <label class="field" for="dkim-n">Notes (n=)<input id="dkim-n" type="text" autocomplete="off"></label>
+            </div>
+            <div><label class="check"><input type="checkbox" id="dkim-t-y"> t=y testing mode</label><label class="check"><input type="checkbox" id="dkim-t-s"> t=s strict (no subdomains)</label></div>
+            <div id="dkim-extra"></div>
+          </section>
+        </div>
+        <div>
+          <section class="section panel" aria-labelledby="dkim-result-h">
+            <div class="section-head"><h3 id="dkim-result-h">record &amp; checks</h3><p id="dkim-host"></p></div>
+            <pre class="record" id="dkim-record"></pre>
+            <div class="stats" id="dkim-stats"></div>
+            <div id="dkim-findings" aria-live="polite"></div>
+          </section>
+          <section class="section panel" aria-labelledby="dkim-out-h">
+            <div class="section-head"><h3 id="dkim-out-h">dns output</h3><p>one TXT record, split into strings where needed</p></div>
+            <div id="dkim-output"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= DMARC ======================= -->
+    <section id="panel-dmarc" role="tabpanel" aria-labelledby="tab-dmarc" tabindex="-1" hidden>
+      <h2 class="sr-only">DMARC record builder and validator</h2>
+      <p class="intro"><strong>DMARC</strong> tells receivers what to do with mail whose From domain is not backed by an aligned SPF or DKIM pass, and where to send reports. It lives at <code>_dmarc.domain</code>. Move from <code>none</code> to <code>quarantine</code> to <code>reject</code> as the reports show your senders passing. <a href="https://www.rfc-editor.org/rfc/rfc7489" target="_blank" rel="noopener noreferrer">RFC 7489</a> · <a href="https://www.rfc-editor.org/rfc/rfc9989" target="_blank" rel="noopener noreferrer">RFC 9989</a></p>
+      <div class="grid-2">
+        <div>
+          <section class="section panel" aria-labelledby="dmarc-import-h">
+            <div class="section-head"><h3 id="dmarc-import-h">check an existing record</h3><p>paste it, or fetch what is published</p></div>
+            <label class="field" for="dmarc-import">DMARC record<textarea id="dmarc-import" spellcheck="false" placeholder="v=DMARC1; p=quarantine; rua=mailto:dmarc@example.com"></textarea></label>
+            <div class="row"><button class="button primary small" type="button" data-import="dmarc">Check</button><button class="button small" type="button" data-fetch="dmarc">Fetch published</button><span class="grow"></span><button class="button small" type="button" data-clear-import="dmarc">Clear</button></div>
+            <div id="dmarc-import-result" aria-live="polite"></div>
+          </section>
+          <section class="section panel" aria-labelledby="dmarc-build-h">
+            <div class="section-head"><h3 id="dmarc-build-h">build</h3><p>defaults are left out of the record</p></div>
+            <fieldset style="border:0;padding:0;margin:0"><legend class="hint" style="margin-bottom:2px">Policy (p=)</legend>
+              <div class="radio-cards">
+                <label class="radio-card"><input type="radio" name="dmarc-p" value="none"><strong>none</strong>Monitor only. Nothing is blocked; you get reports.</label>
+                <label class="radio-card"><input type="radio" name="dmarc-p" value="quarantine"><strong>quarantine</strong>Failing mail goes to junk or quarantine.</label>
+                <label class="radio-card"><input type="radio" name="dmarc-p" value="reject"><strong>reject</strong>Failing mail is refused.</label>
+              </div>
+            </fieldset>
+            <div class="fields-2">
+              <label class="field" for="dmarc-sp">Subdomain policy (sp=)<select id="dmarc-sp"><option value="">same as p (default)</option><option value="none">none</option><option value="quarantine">quarantine</option><option value="reject">reject</option></select></label>
+              <label class="field" for="dmarc-pct">Percentage (pct=, RFC 7489 only)<input id="dmarc-pct" type="number" min="0" max="100" step="1" placeholder="100"></label>
+            </div>
+            <label class="field" for="dmarc-rua">Aggregate reports to (rua=)<input id="dmarc-rua" type="text" spellcheck="false" autocomplete="off" placeholder="dmarc@example.com, reports@provider.example"></label>
+            <label class="field" for="dmarc-ruf">Failure reports to (ruf=), optional<input id="dmarc-ruf" type="text" spellcheck="false" autocomplete="off" placeholder="rarely needed"></label>
+            <div class="fields-3">
+              <label class="field" for="dmarc-adkim">DKIM alignment<select id="dmarc-adkim"><option value="r">relaxed (default)</option><option value="s">strict</option></select></label>
+              <label class="field" for="dmarc-aspf">SPF alignment<select id="dmarc-aspf"><option value="r">relaxed (default)</option><option value="s">strict</option></select></label>
+              <label class="field" for="dmarc-ri">Report interval (ri=, RFC 7489 only)<input id="dmarc-ri" type="number" min="1" step="1" placeholder="86400"></label>
+            </div>
+            <details class="help"><summary>More options: failure-report options (fo=), np=</summary>
+              <div style="margin-top:8px"><span class="hint">fo= (only used with ruf):</span>
+                <label class="check"><input type="checkbox" name="dmarc-fo" value="0"> 0 all failed</label><label class="check"><input type="checkbox" name="dmarc-fo" value="1"> 1 any failed</label><label class="check"><input type="checkbox" name="dmarc-fo" value="d"> d DKIM failed</label><label class="check"><input type="checkbox" name="dmarc-fo" value="s"> s SPF failed</label></div>
+              <label class="field" for="dmarc-np" style="margin-top:8px">Non-existent subdomain policy (np=, RFC 9989)<select id="dmarc-np"><option value="">not set</option><option value="none">none</option><option value="quarantine">quarantine</option><option value="reject">reject</option></select></label>
+            </details>
+            <div id="dmarc-extra"></div>
+          </section>
+        </div>
+        <div>
+          <section class="section panel" aria-labelledby="dmarc-result-h">
+            <div class="section-head"><h3 id="dmarc-result-h">record &amp; checks</h3><p id="dmarc-host"></p></div>
+            <pre class="record" id="dmarc-record"></pre>
+            <ul class="explain" id="dmarc-explain"></ul>
+            <div id="dmarc-findings" aria-live="polite"></div>
+          </section>
+          <section class="section panel" aria-labelledby="dmarc-out-h">
+            <div class="section-head"><h3 id="dmarc-out-h">dns output</h3><p>copy into your DNS host</p></div>
+            <div id="dmarc-output"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= INSPECT ======================= -->
+    <section id="panel-inspect" role="tabpanel" aria-labelledby="tab-inspect" tabindex="-1" hidden>
+      <h2 class="sr-only">Live DNS inspector</h2>
+      <p class="intro">Looks up what is <strong>published right now</strong> for the domain above using DNS-over-HTTPS, follows every SPF include to count lookups, checks DMARC report authorization and DKIM keys, and compares the results with what you built. Only the names being looked up are sent to the DNS provider you pick. <a href="https://www.rfc-editor.org/rfc/rfc8484" target="_blank" rel="noopener noreferrer">RFC 8484</a></p>
+      <section class="section panel">
+        <form class="inspect-form" id="inspect-form">
+          <label class="field" for="selectors">DKIM selectors (comma separated)<input id="selectors" type="text" spellcheck="false" autocomplete="off" placeholder="selector1, selector2"></label>
+          <label class="field" for="doh">DNS-over-HTTPS provider<select id="doh"><option value="auto">Cloudflare, then Google</option><option value="cloudflare">Cloudflare only</option><option value="google">Google only</option></select></label>
+          <button class="button primary" type="submit" id="inspect-run">Inspect</button>
+        </form>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="common-selectors"> also try common selectors (selector1, selector2, google, k1, s1…)</label>
+      </section>
+      <div id="inspect-results" aria-live="polite"></div>
+      <section class="section panel" aria-labelledby="verify-h">
+        <div class="section-head"><h3 id="verify-h">after publishing</h3><p>a verification checklist</p></div>
+        <ol class="steps">
+          <li><strong>Publish</strong> the record from the DNS output panel. Replace the old record at that name; do not add a second one.</li>
+          <li><strong>Check it here.</strong> Use Inspect, or "Check published" under any output panel, to confirm the published record matches what you built. If it still shows the old value, the answer is cached: wait out the TTL shown and check again.</li>
+          <li><strong>Send a test message</strong> to a mailbox at another provider and open its headers. The Authentication-Results line should show <code>spf=pass</code>, <code>dkim=pass</code> and <code>dmarc=pass</code>.</li>
+          <li><strong>Watch the DMARC reports</strong> for a week or two before tightening the policy, and again after each change.</li>
+        </ol>
+      </section>
+    </section>
+
+    <!-- ======================= HELP ======================= -->
+    <section id="panel-help" role="tabpanel" aria-labelledby="tab-help" tabindex="-1" hidden>
+      <h2 class="sr-only">Help and references</h2>
+      <div class="help-grid">
+        <section class="section panel">
+          <h3>spf, dkim and dmarc in short</h3>
+          <p><strong>SPF</strong> (Sender Policy Framework) is a TXT record at your domain that lists the servers allowed to send mail with your domain in the envelope sender (Return-Path). Receivers compare the connecting server's address with that list. Each <code>include</code>, <code>a</code>, <code>mx</code>, <code>exists</code>, <code>ptr</code> and <code>redirect</code> costs a DNS lookup, and the whole record, including everything it includes, may use at most <strong>10</strong>. Over the limit, SPF fails for all your mail.</p>
+          <p><strong>DKIM</strong> (DomainKeys Identified Mail) signs each message. Your mail system keeps the private key; the public key is published at <code>selector._domainkey.yourdomain</code> so receivers can check the signature. Use RSA keys of 2048 bits; long keys are published as several strings in one TXT record.</p>
+          <p><strong>DMARC</strong> ties the two to the address people see. A message passes when SPF or DKIM passes for a domain aligned with the From address. The record at <code>_dmarc.yourdomain</code> tells receivers what to do with mail that fails (none, quarantine or reject) and where to send reports.</p>
+          <p>Troubleshooting usually comes down to one of these: two SPF records at one name, too many SPF lookups, a DKIM key split into two TXT records, a selector that does not match the one your signer uses, or a DMARC record whose first tag is not <code>v=DMARC1</code>. MailForge checks each of them.</p>
+        </section>
+        <section class="section panel">
+          <h3>one record, several strings</h3>
+          <p>A DNS TXT <em>string</em> holds at most 255 bytes. Longer values, typically DKIM keys and long SPF records, are published as several strings <strong>inside one TXT record</strong>. Receivers join the strings back together with nothing in between (<a href="https://www.rfc-editor.org/rfc/rfc7208#section-3.3" target="_blank" rel="noopener noreferrer">SPF §3.3</a>, <a href="https://www.rfc-editor.org/rfc/rfc6376#section-3.6.2.2" target="_blank" rel="noopener noreferrer">DKIM §3.6.2.2</a>).</p>
+          <div class="diagram">
+            <div class="good"><strong>✓ one record, two strings</strong>s1._domainkey TXT "v=DKIM1; k=rsa; p=MIIBIjAN…" "…IDAQAB"</div>
+            <div class="bad"><strong>✗ two records</strong>s1._domainkey TXT "v=DKIM1; k=rsa; p=MIIBIjAN…"<br>s1._domainkey TXT "…IDAQAB"</div>
+          </div>
+          <p>Two records break DKIM (neither half is a valid key) and, for SPF or DMARC, cause a permerror or no policy at all. In the Route 53 console, every line in the Value box is a separate record, so keep all strings on one line.</p>
+        </section>
+        <section class="section panel">
+          <h3>ttl guidance</h3>
+          <ul>
+            <li><strong>3600</strong> (one hour) is a sensible default for all three records.</li>
+            <li>A day before a planned change, lower the TTL to <strong>300</strong> so a mistake can be undone quickly; raise it again once the new record checks out.</li>
+            <li>When rotating DKIM keys, publish the new selector first, switch signing over, and keep the old key published for at least a week so mail already in transit still verifies.</li>
+          </ul>
+        </section>
+        <section class="section panel">
+          <h3>what "valid" means here</h3>
+          <p>MailForge checks syntax, limits and known pitfalls against the RFCs, and live DNS when you inspect. It cannot know whether the servers listed in SPF are really yours, whether your mail server signs with the private key matching the DKIM key, or how a particular receiver treats your mail. The test message in the after-publishing checklist is the final word.</p>
+          <p>Proposed repairs are only applied when you choose them. Each change is labeled: <span class="kind">format</span> same meaning, <span class="kind dead">no effect</span> removes something receivers never evaluate, <span class="kind merge">merge</span> combines address ranges covering exactly the same addresses, <span class="kind fix">fix</span> changes how receivers behave (for example a record they currently ignore). <span class="kind blocked">by hand</span> items need your decision.</p>
+        </section>
+        <section class="section panel">
+          <h3>privacy</h3>
+          <p>Building and checking happen in this page. Nothing is uploaded and there is no account, analytics or tracking. Your work is saved in this browser's local storage so it survives a reload.</p>
+          <p>Inspect, "Fetch published" and "Check published" are the only parts that use the network. They send the DNS names being looked up (such as <code>_dmarc.example.com</code>) to Cloudflare (<code>cloudflare-dns.com</code>) or Google (<code>dns.google</code>) over HTTPS, the same lookups any mail server would do. The records you type are never sent, and the page asks the browser not to send its address with those requests. Everything else works offline.</p>
+        </section>
+        <section class="section panel">
+          <h3>references</h3>
+          <ul>
+            <li><a href="https://www.rfc-editor.org/rfc/rfc7208" target="_blank" rel="noopener noreferrer">RFC 7208</a>: Sender Policy Framework (SPF). Lookup limits: §4.6.4.</li>
+            <li><a href="https://www.rfc-editor.org/rfc/rfc6376" target="_blank" rel="noopener noreferrer">RFC 6376</a>: DomainKeys Identified Mail (DKIM) signatures.</li>
+            <li><a href="https://www.rfc-editor.org/rfc/rfc8301" target="_blank" rel="noopener noreferrer">RFC 8301</a>: DKIM cryptographic update (no SHA-1, RSA ≥ 1024 bits).</li>
+            <li><a href="https://www.rfc-editor.org/rfc/rfc8463" target="_blank" rel="noopener noreferrer">RFC 8463</a>: Ed25519 for DKIM.</li>
+            <li><a href="https://www.rfc-editor.org/rfc/rfc7489" target="_blank" rel="noopener noreferrer">RFC 7489</a>: DMARC (2015). External report authorization: §7.1.</li>
+            <li><a href="https://www.rfc-editor.org/rfc/rfc9989" target="_blank" rel="noopener noreferrer">RFC 9989</a>: DMARC (May 2026), which replaced RFC 7489. It adds <code>t=</code>, <code>psd=</code> and <code>np=</code> and removes <code>pct=</code>, <code>rf=</code> and <code>ri=</code>. MailForge checks follow RFC 7489, which many receivers still implement, and say where RFC 9989 differs.</li>
+            <li><a href="https://www.rfc-editor.org/rfc/rfc9990" target="_blank" rel="noopener noreferrer">RFC 9990</a>: DMARC aggregate reports. External report authorization: §4.</li>
+            <li><a href="https://www.rfc-editor.org/rfc/rfc1035#section-3.3" target="_blank" rel="noopener noreferrer">RFC 1035 §3.3</a>: TXT character-strings (255-byte limit).</li>
+            <li><a href="https://www.rfc-editor.org/rfc/rfc8484" target="_blank" rel="noopener noreferrer">RFC 8484</a>: DNS over HTTPS.</li>
+          </ul>
+        </section>
+        <section class="section panel">
+          <h3>examples</h3>
+          <ul>
+            <li>Domain that sends no mail: SPF <code>v=spf1 -all</code>, DMARC <code>v=DMARC1; p=reject</code>, no DKIM.</li>
+            <li>Microsoft 365 only: <code>v=spf1 include:spf.protection.outlook.com -all</code>, DKIM via the two Microsoft CNAMEs (selector1, selector2).</li>
+            <li>Starting DMARC: <code>v=DMARC1; p=none; rua=mailto:dmarc@yourdomain</code>, then quarantine, then reject.</li>
+          </ul>
+          <div class="row"><button class="button small" type="button" data-example="parked">Load the "no mail" example</button><button class="button small" type="button" data-example="m365">Load the Microsoft 365 example</button></div>
+        </section>
+      </div>
+    </section>
+    </div>
+
+    <footer class="footer"><span><strong>mailforge</strong> v<span id="core-version"></span> · free, local-first, GPL-3.0-or-later · <a href="https://radmagelabs.com/">RadMage Labs</a> · <a href="https://github.com/RadMageIRL/mailforge" target="_blank" rel="noopener noreferrer">Source on GitHub</a> · <a href="https://github.com/RadMageIRL/mailforge/issues" target="_blank" rel="noopener noreferrer">Feedback</a></span><span>checks follow RFC 7208, 6376, 8301, 8463, 7489 and 9989</span></footer>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="mailforge-core.js?v=0.1.0"></script>
+  <script src="app.js?v=0.1.0"></script>
+</body>
+</html>
